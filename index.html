@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Learn City Staff Appraisal</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div id="signInScreen">
+    <h1>Staff Appraisal</h1>
+    <p class="subtitle">Learn City Model Schools &amp; Academy</p>
+    <p class="subtitle">Sign in with the same email and code you use for Spark Points.</p>
+
+    <form id="signInForm" autocomplete="on">
+      <label for="staffEmail">Email</label>
+      <input type="email" id="staffEmail" autocomplete="username">
+
+      <label for="staffCode">Code</label>
+      <input type="password" id="staffCode" autocomplete="current-password" inputmode="numeric">
+
+      <label class="check"><input type="checkbox" id="rememberMeToggle"> Remember me on this device (not on shared computers)</label>
+
+      <button id="signInBtn" type="submit">Sign In</button>
+    </form>
+    <p id="signInError" class="error"></p>
+  </div>
+
+  <div id="mainScreen" class="hidden">
+    <div class="topBar">
+      <div>
+        <strong id="staffNameDisplay"></strong>
+        <span id="staffRoleDisplay" class="subtitle"></span>
+        <div id="sessionDisplay" class="subtitle"></div>
+      </div>
+      <button id="signOutBtn" type="button" class="linkBtn">Sign out</button>
+    </div>
+
+    <p id="developmentalBanner" class="banner hidden">This session's appraisal is <strong>developmental only</strong>. Ratings do not affect pay or promotion.</p>
+
+    <nav class="tabBar" id="tabBar">
+      <button type="button" class="tabBtn hidden" data-tab="myTab" id="myTabBtn">My Appraisal</button>
+      <button type="button" class="tabBtn hidden" data-tab="teamTab" id="teamTabBtn">My Team</button>
+      <button type="button" class="tabBtn hidden" data-tab="punctualityTab" id="punctualityTabBtn">Punctuality</button>
+      <button type="button" class="tabBtn hidden" data-tab="setupTab" id="setupTabBtn">Setup</button>
+    </nav>
+
+    <p id="noAccessNote" class="subtitle hidden">Your account has nothing to do in the appraisal system. Contact the Head of IT if you think this is wrong.</p>
+
+    <section id="myTab" class="tabPanel hidden">
+      <div id="myRecord"><p class="subtitle">Loading...</p></div>
+    </section>
+
+    <section id="teamTab" class="tabPanel hidden">
+      <div id="teamList"><p class="subtitle">Loading...</p></div>
+      <div id="teamRecordWrap" class="hidden">
+        <button type="button" class="linkBtn" data-act="backToTeam">&larr; Back to team</button>
+        <div id="teamRecord"></div>
+      </div>
+    </section>
+
+    <section id="punctualityTab" class="tabPanel hidden">
+      <p class="subtitle">Enter each staff member's on-time arrival percentage and unauthorised absence days for the month. Approved leave and sickness never count as unauthorised absence.</p>
+      <label for="punctualityMonth">Month</label>
+      <input type="month" id="punctualityMonth">
+      <div id="punctualityTable"></div>
+      <button type="button" id="punctualitySaveBtn">Save Punctuality</button>
+      <p id="punctualityError" class="error"></p>
+      <p id="punctualitySuccess" class="success"></p>
+    </section>
+
+    <section id="setupTab" class="tabPanel hidden">
+      <p class="subtitle">Who is appraised, under which framework, and by whom. Leave First Appraiser blank for staff the Head of School appraises directly. Form Tutors' subjects taught feed their academic progress score.</p>
+      <div id="setupContent"><p class="subtitle">Loading...</p></div>
+    </section>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
