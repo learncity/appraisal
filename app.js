@@ -193,7 +193,7 @@ function renderRecord() {
 function secHeader(r) {
   const s = r.staff;
   return '<div class="card"><div class="cardHead"><h2>' + esc(s.name) + '</h2>' + chip(r.appraisal.Status || 'Planning') + '</div>' +
-    '<p class="subtitle">' + esc(s.framework) + ' · ' + esc(s.className) + ' · ' + esc(r.session) + '</p>' +
+    '<p class="subtitle">' + [s.framework, s.className, r.session].filter(Boolean).map(esc).join(' · ') + '</p>' +
     '<p class="muted">Appraised by: ' + (s.firstAppraiser ? 'Section Head (' + esc(s.firstAppraiser) + '), then Head of School' : 'Head of School') + '</p></div>';
 }
 
@@ -342,14 +342,15 @@ function rubricHtml(type) {
 function secAcademic(r) {
   const p = r.permissions;
   const isForm = String(r.staff.framework).indexOf('Form Tutor') !== -1;
+  const perSubject = isForm || r.staff.framework === 'Subject Teacher';
   const comp = r.summary.components.find(function (c) { return c.key === 'academic'; }) || {};
   const terms = state.me.lists.terms;
   let html = '<div class="card"><h2>Academic progress</h2>';
   html += '<p class="muted">Entered by the appraiser each term until the academic report system takes over: the % of students making expected progress against their baseline.' +
     (isForm ? ' For Form Tutors this is half the score; the other half is pastoral (form attendance, behaviour, reports on time).' : '') + '</p>';
-  if (isForm) {
+  if (perSubject) {
     html += '<p class="muted">Subjects taught: ' + (r.subjects.length ? esc(r.subjects.map(function (s) { return s.subject + ' (' + s.className + ')'; }).join(', '))
-      : 'none recorded — scored on pastoral measures only. Head of IT can add subjects in Setup.') + '</p>';
+      : (isForm ? 'none recorded — scored on pastoral measures only.' : 'none recorded yet.') + ' Subjects come from Results Setup (Subject teachers); Head of IT can also add them in Appraisal Setup.') + '</p>';
   }
   const rows = r.academic;
   if (rows.length) {
@@ -377,12 +378,12 @@ function secAcademic(r) {
     });
   }
   if (p.canAppraise) {
-    const subjOpts = isForm
+    const subjOpts = perSubject
       ? '<label>Subject and class</label><select name="subjectClass">' + options(r.subjects.map(function (s) { return [s.subject + '||' + s.className, s.subject + ' — ' + s.className]; }), '', 'Choose...') + '</select>'
       : '<input type="hidden" name="subjectClass" value="All subjects||' + esc(r.staff.className) + '">';
-    if (!isForm || r.subjects.length) {
+    if (!perSubject || r.subjects.length) {
       html += '<form data-form="academic" class="subForm"><h3>Enter academic progress</h3>' +
-        '<div class="row2"><div><label>Term</label><select name="term">' + options(terms, r.term) + '</select></div><div>' + (isForm ? subjOpts : '<label>Class</label><input value="' + esc(r.staff.className) + '" disabled>' + subjOpts) + '</div></div>' +
+        '<div class="row2"><div><label>Term</label><select name="term">' + options(terms, r.term) + '</select></div><div>' + (perSubject ? subjOpts : '<label>Class</label><input value="' + esc(r.staff.className) + '" disabled>' + subjOpts) + '</div></div>' +
         '<div class="row2"><div><label>% making expected progress</label><input type="number" name="pct" min="0" max="100" step="1"></div>' +
         '<div><label>Number of students</label><input type="number" name="students" min="1" step="1"></div></div>' +
         '<label>Context note (optional)</label><input name="note" placeholder="e.g. teacher changed mid-term">' +
@@ -742,12 +743,14 @@ function renderSetup() {
   let html = '<div class="tableWrap"><table class="dataTable"><thead><tr><th>Staff</th><th>Framework</th><th>Class</th><th>First appraiser</th><th>Active</th><th></th></tr></thead><tbody>';
   s.appraisees.slice().sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); }).forEach(function (a) {
     const key = esc(a.email);
-    const isForm = String(a.framework).indexOf('Form Tutor') !== -1;
+    const isForm = String(a.framework).indexOf('Form Tutor') !== -1 || a.framework === 'Subject Teacher';
     const subj = s.subjects.filter(function (x) { return x.email === a.email; });
+    const fromResults = (s.resultsSubjects || []).filter(function (x) { return x.email === a.email; });
+    const all = fromResults.concat(subj);
     html += '<tr data-email="' + key + '"><td><strong>' + esc(a.name) + '</strong><br><span class="muted">' + key + '</span>' +
-      (isForm ? '<br><span class="muted">Subjects: ' + (subj.length ? esc(subj.map(function (x) { return x.subject + ' (' + x.className + ')'; }).join(', ')) : 'none') + '</span>' : '') + '</td>' +
+      (isForm ? '<br><span class="muted">Subjects: ' + (all.length ? esc(all.map(function (x) { return x.subject + ' (' + x.className + ')'; }).join(', ')) : 'none') + '</span>' : '') + '</td>' +
       '<td><select class="suFramework">' + options(s.frameworks, a.framework) + '</select></td>' +
-      '<td><select class="suClass">' + options(s.classes, a.className, 'Choose...') + '</select></td>' +
+      '<td>' + classInput(a.className) + '</td>' +
       '<td><select class="suAppraiser">' + appraiserOptions(a.firstAppraiser) + '</select></td>' +
       '<td><input type="checkbox" class="suActive"' + (a.active ? ' checked' : '') + '></td>' +
       '<td><button type="button" class="smallBtn" data-act="saveAppraisee" data-email="' + key + '">Save</button>' +
@@ -761,16 +764,23 @@ function renderSetup() {
   html += '<div class="subForm"><h3>Add someone to appraisal</h3>' +
     (notListed.length ? '<div id="addAppraiseeRow"><label>Staff member</label><select class="suEmail">' + options(notListed.map(function (u) { return [u.email, u.name + ' — ' + u.role]; }), '', 'Choose...') + '</select>' +
       '<div class="row2"><div><label>Framework</label><select class="suFramework">' + options(s.frameworks, '') + '</select></div>' +
-      '<div><label>Class</label><select class="suClass">' + options(s.classes, '', 'Choose...') + '</select></div></div>' +
+      '<div><label>Class</label>' + classInput('') + '</div></div>' +
       '<label>First appraiser</label><select class="suAppraiser">' + appraiserOptions('') + '</select>' +
       '<button type="button" data-act="addAppraisee">Add</button><p class="error suMsg"></p></div>'
       : '<p class="subtitle">Every teaching member of staff is already listed.</p>') + '</div>';
   $('setupContent').innerHTML = html;
 }
 
+/* Class: one class, two forms ("JSS 3, SSS 3"), or blank for a Subject Teacher. */
+function classInput(value) {
+  return '<input class="suClass" list="suClassList" value="' + esc(value) + '" placeholder="e.g. JSS 1, or JSS 3, SSS 3">' +
+    '<datalist id="suClassList">' + state.setup.classes.map(function (c) { return '<option value="' + esc(c) + '">'; }).join('') + '</datalist>' +
+    '<span class="muted" style="font-size:12px">Form class(es). Leave blank for a Subject Teacher.</span>';
+}
+
 function subjectsEditor(email, subj) {
   const rows = subj.length ? subj : [{ subject: '', className: '' }];
-  return '<div class="subForm hidden" id="subj-' + esc(email) + '"><p class="muted">Subjects this Form Tutor teaches, with the class for each. Their academic half is calculated from these.</p>' +
+  return '<div class="subForm hidden" id="subj-' + esc(email) + '"><p class="muted">Subjects normally come from Results Setup (Subject teachers) and are shown above. Add rows here only for subjects not entered in Results. Academic progress is entered per subject and class.</p>' +
     '<div class="subjRows">' + rows.map(function (x) { return subjectRow(x.subject, x.className); }).join('') + '</div>' +
     '<button type="button" class="smallBtn" data-act="addSubjectRow">Add row</button> ' +
     '<button type="button" class="smallBtn" data-act="saveSubjects" data-email="' + esc(email) + '">Save subjects</button><p class="error suMsg"></p></div>';
@@ -870,6 +880,18 @@ function wire() {
       $('obsRubric').innerHTML = rubricHtml(e.target.value);
     }
   });
+
+  /* A link from the access email looks like ?email=...&code=... — prefill
+     and sign in automatically, then strip them from the address bar so the
+     code is not left visible or bookmarked. Same as Spark Points. */
+  const params = new URLSearchParams(location.search);
+  if (params.get('email') && params.get('code')) {
+    $('staffEmail').value = params.get('email');
+    $('staffCode').value = params.get('code');
+    history.replaceState({}, document.title, location.pathname);
+    trySignIn(params.get('email'), params.get('code'));
+    return;
+  }
 
   let savedEmail, savedCode;
   try {
